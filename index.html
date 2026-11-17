@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generador de Etiquetas de Inventario (Code 128)</title>
+  <!-- Librerías para Código de Barras Code128 y Generación de PDF -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #1e293b;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --border: #cbd5e1;
+      --text: #0f172a;
+      --muted: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background-color: var(--primary);
+      color: white;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+
+    header span {
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 24px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+      border: 1px solid var(--border);
+    }
+
+    .panel h2 {
+      margin-top: 0;
+      font-size: 1.05rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+      margin-bottom: 16px;
+      color: var(--primary);
+    }
+
+    .form-group {
+      margin-bottom: 14px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 5px;
+      color: #334155;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 9px 11px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.95rem;
+      color: var(--text);
+      background: #fff;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+    }
+
+    .row-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .custom-item-box {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 11px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: white;
+      margin-top: 8px;
+    }
+
+    .btn-primary:hover {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-secondary {
+      background-color: #0f172a;
+      color: white;
+      margin-top: 8px;
+    }
+
+    .btn-secondary:hover {
+      background-color: #334155;
+    }
+
+    .btn-small {
+      padding: 8px 12px;
+      width: auto;
+      font-size: 0.85rem;
+      background: #e2e8f0;
+      color: #1e293b;
+    }
+
+    .btn-small:hover {
+      background: #cbd5e1;
+    }
+
+    .info-badge {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 0.83rem;
+      margin-top: 12px;
+      line-height: 1.4;
+    }
+
+    /* Vista previa de etiquetas */
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .preview-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
+      background: #e2e8f0;
+      padding: 20px;
+      border-radius: 8px;
+      max-height: 78vh;
+      overflow-y: auto;
+    }
+
+    /* Estilo exacto de la etiqueta (7cm x 14cm según plantilla Word) */
+    .etiqueta-card {
+      width: 7cm;
+      height: 14cm;
+      background: #ffffff;
+      border: 1px dashed #94a3b8;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+      padding: 0.9cm 0.35cm 0.5cm 0.35cm;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      text-align: center;
+      color: #000000;
+      position: relative;
+      page-break-after: always;
+      break-after: page;
+    }
+
+    /* Modo apaisado opcional (14cm x 7cm) */
+    .etiqueta-card.landscape {
+      width: 14cm;
+      height: 7cm;
+      padding: 0.35cm 0.6cm;
+    }
+
+    .etq-item {
+      font-size: 34pt;
+      font-weight: 800;
+      line-height: 1.05;
+      text-transform: uppercase;
+      word-break: break-word;
+      margin-top: 4px;
+    }
+
+    .etiqueta-card.landscape .etq-item {
+      font-size: 24pt;
+      margin-top: 0;
+    }
+
+    .etq-meta {
+      font-size: 11.5pt;
+      line-height: 1.45;
+      margin: 4px 0;
+    }
+
+    .etiqueta-card.landscape .etq-meta {
+      font-size: 10.5pt;
+      line-height: 1.25;
+      margin: 2px 0;
+    }
+
+    .etq-inv-title {
+      font-size: 12pt;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+
+    .etq-serie {
+      font-size: 40pt;
+      font-weight: 800;
+      line-height: 1;
+      margin: 2px 0;
+    }
+
+    .etiqueta-card.landscape .etq-serie {
+      font-size: 28pt;
+    }
+
+    .etq-barcode-wrap {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-top: 2px;
+    }
+
+    .etq-barcode-wrap svg {
+      max-width: 94%;
+      height: 68px;
+    }
+
+    .etiqueta-card.landscape .etq-barcode-wrap svg {
+      height: 46px;
+    }
+
+    .etq-footer {
+      font-size: 12pt;
+      font-weight: 600;
+      letter-spacing: 1px;
+      margin-bottom: 2px;
+    }
+
+    /* Estilos de impresión directa */
+    @media print {
+      body {
+        background: none;
+      }
+      header, .no-print {
+        display: none !important;
+      }
+      .container {
+        display: block;
+        margin: 0;
+        padding: 0;
+        max-width: none;
+      }
+      .panel {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+        background: none;
+      }
+      .preview-grid {
+        display: block;
+        background: none;
+        padding: 0;
+        max-height: none;
+        overflow: visible;
+      }
+      .etiqueta-card {
+        border: none;
+        box-shadow: none;
+        margin: 0;
+      }
+    }
+  </style>
+  <style id="dynamic-page-style">
+    @page {
+      size: 7cm 14cm;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+
+<header class="no-print">
+  <div>
+    <h1>Generador de Etiquetas de Inventario</h1>
+    <span>Formato cartón 14 cm × 7 cm • Código de Barras Code 128</span>
+  </div>
+</header>
+
+<div class="container">
+  <!-- Panel de Configuración -->
+  <div class="panel no-print">
+    <h2>Datos del Lote</h2>
+
+    <div class="form-group">
+      <label for="itemSelect">Ítem / Tipo de Ataúd</label>
+      <select id="itemSelect">
+        <option value="N15">N15</option>
+        <option value="SEMI">SEMI</option>
+        <option value="SEMI T">SEMI T</option>
+        <option value="EXTRA">EXTRA</option>
+        <option value="TIERRA N 15">TIERRA N 15</option>
+      </select>
+      <div class="custom-item-box">
+        <input type="text" id="newItemInput" placeholder="Agregar otro ítem..." />
+        <button type="button" class="btn btn-small" onclick="agregarItem()">+ Agregar</button>
+      </div>
+    </div>
+
+    <div class="row-2">
+      <div class="form-group">
+        <label for="serieInicio">N° Serie Inicio</label>
+        <input type="number" id="serieInicio" value="6658" min="1" />
+      </div>
+      <div class="form-group">
+        <label for="cantidad">Cantidad</label>
+        <input type="number" id="cantidad" value="5" min="1" max="500" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="fabricante">Fabricante / Proveedor</label>
+      <input type="text" id="fabricante" value="Coop de Coop" placeholder="Ej: Coop de Coop" />
+    </div>
+
+    <div class="form-group">
+      <label for="fechaIngreso">Fecha de Ingreso</label>
+      <input type="date" id="fechaIngreso" />
+    </div>
+
+    <div class="form-group">
+      <label for="orientacion">Orientación del Cartón (14 cm × 7 cm)</label>
+      <select id="orientacion" onchange="cambiarOrientacion()">
+        <option value="portrait">Vertical: 7 cm ancho × 14 cm alto (Modelo Word)</option>
+        <option value="landscape">Horizontal: 14 cm ancho × 7 cm alto</option>
+      </select>
+    </div>
+
+    <button type="button" class="btn btn-primary" onclick="descargarPDF()">
+      Descargar PDF listo para imprimir
+    </button>
+
+    <button type="button" class="btn btn-secondary" onclick="window.print()">
+      Imprimir directamente
+    </button>
+
+    <div class="info-badge" id="resumenRango">
+      Se generarán etiquetas del <strong>6658</strong> al <strong>6662</strong>.
+    </div>
+  </div>
+
+  <!-- Panel de Vista Previa -->
+  <div class="panel">
+    <div class="preview-header no-print">
+      <h2 style="margin:0; border:none; padding:0;">Vista Previa de Etiquetas</h2>
+      <span id="contadorBadge" style="font-size:0.85rem; color:var(--muted); font-weight:600;">5 etiquetas</span>
+    </div>
+
+    <div class="preview-grid" id="previewContainer"></div>
+  </div>
+</div>
+
+<script>
+  // Inicializar fecha de hoy por defecto
+  const hoy = new Date();
+  const yyyy = hoy.getFullYear();
+  const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+  const dd = String(hoy.getDate()).padStart(2, '0');
+  document.getElementById('fechaIngreso').value = `${yyyy}-${mm}-${dd}`;
+
+  // Escuchar cambios en tiempo real
+  ['itemSelect', 'serieInicio', 'cantidad', 'fabricante', 'fechaIngreso'].forEach(id => {
+    document.getElementById(id).addEventListener('input', renderizarEtiquetas);
+    document.getElementById(id).addEventListener('change', renderizarEtiquetas);
+  });
+
+  function agregarItem() {
+    const input = document.getElementById('newItemInput');
+    const val = input.value.trim().toUpperCase();
+    if (!val) return;
+    const select = document.getElementById('itemSelect');
+    const option = document.createElement('option');
+    option.value = val;
+    option.textContent = val;
+    select.appendChild(option);
+    select.value = val;
+    input.value = '';
+    renderizarEtiquetas();
+  }
+
+  function formatearFecha(isoDate) {
+    if (!isoDate) return '';
+    const [y, m, d] = isoDate.split('-');
+    return `${parseInt(d, 10)}/${parseInt(m, 10)}/${y}`;
+  }
+
+  function cambiarOrientacion() {
+    const orientacion = document.getElementById('orientacion').value;
+    const pageStyle = document.getElementById('dynamic-page-style');
+    if (orientacion === 'portrait') {
+      pageStyle.innerHTML = `@page { size: 7cm 14cm; margin: 0; }`;
+    } else {
+      pageStyle.innerHTML = `@page { size: 14cm 7cm; margin: 0; }`;
+    }
+    renderizarEtiquetas();
+  }
+
+  function obtenerDatos() {
+    const item = document.getElementById('itemSelect').value.trim() || 'ITEM';
+    const inicio = parseInt(document.getElementById('serieInicio').value, 10) || 1;
+    let cantidad = parseInt(document.getElementById('cantidad').value, 10) || 1;
+    if (cantidad < 1) cantidad = 1;
+    if (cantidad > 500) cantidad = 500;
+    const fabricante = document.getElementById('fabricante').value.trim();
+    const fecha = formatearFecha(document.getElementById('fechaIngreso').value);
+    const orientacion = document.getElementById('orientacion').value;
+
+    return { item, inicio, cantidad, fabricante, fecha, orientacion };
+  }
+
+  function renderizarEtiquetas() {
+    const { item, inicio, cantidad, fabricante, fecha, orientacion } = obtenerDatos();
+    const container = document.getElementById('previewContainer');
+    container.innerHTML = '';
+
+    const fin = inicio + cantidad - 1;
+    document.getElementById('resumenRango').innerHTML =
+      `Se generarán <strong>${cantidad}</strong> etiqueta(s): desde serie <strong>${inicio}</strong> hasta <strong>${fin}</strong>.`;
+    document.getElementById('contadorBadge').textContent = `${cantidad} etiqueta(s)`;
+
+    for (let i = 0; i < cantidad; i++) {
+      const serieActual = String(inicio + i);
+      const card = document.createElement('div');
+      card.className = `etiqueta-card ${orientacion === 'landscape' ? 'landscape' : ''}`;
+
+      card.innerHTML = `
+        <div class="etq-item">${escapeHtml(item)}</div>
+        <div class="etq-meta">
+          <div>Prov: ${escapeHtml(fabricante)}</div>
+          <div>Fecha de Ingreso: ${escapeHtml(fecha)}</div>
+          <div class="etq-inv-title">INVENTARIO</div>
+        </div>
+        <div class="etq-serie">${escapeHtml(serieActual)}</div>
+        <div class="etq-barcode-wrap">
+          <svg id="barcode-${i}"></svg>
+        </div>
+        <div class="etq-footer">CONSUMIDO</div>
+      `;
+
+      container.appendChild(card);
+
+      JsBarcode(`#barcode-${i}`, serieActual, {
+        format: "CODE128",
+        lineColor: "#000000",
+        width: 2.4,
+        height: orientacion === 'landscape' ? 44 : 65,
+        displayValue: false,
+        margin: 0
+      });
+    }
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  // Generación directa de PDF vectorial en 70mm x 140mm (o 140mm x 70mm)
+  function descargarPDF() {
+    const { jsPDF } = window.jspdf;
+    const { item, inicio, cantidad, fabricante, fecha, orientacion } = obtenerDatos();
+
+    const isPortrait = orientacion === 'portrait';
+    const doc = new jsPDF({
+      orientation: isPortrait ? 'portrait' : 'landscape',
+      unit: 'mm',
+      format: isPortrait ? [70, 140] : [140, 70]
+    });
+
+    const pageW = isPortrait ? 70 : 140;
+    const centerX = pageW / 2;
+
+    for (let i = 0; i < cantidad; i++) {
+      if (i > 0) {
+        doc.addPage(isPortrait ? [70, 140] : [140, 70], isPortrait ? 'portrait' : 'landscape');
+      }
+
+      const serieActual = String(inicio + i);
+
+      // Crear canvas temporal para el código de barras Code128
+      const canvas = document.createElement('canvas');
+      JsBarcode(canvas, serieActual, {
+        format: "CODE128",
+        lineColor: "#000000",
+        width: 3,
+        height: 80,
+        displayValue: false,
+        margin: 0
+      });
+      const barcodeDataUrl = canvas.toDataURL('image/png');
+
+      doc.setTextColor(0, 0, 0);
+
+      if (isPortrait) {
+        // Diseño Vertical: 70mm x 140mm (exacto al modelo plantilla_etiquetas_corregida.docx)
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(item.length > 7 ? 24 : 32);
+        doc.text(item, centerX, 22, { align: 'center', maxWidth: 64 });
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(11);
+        doc.text(`Prov: ${fabricante}`, centerX, 38, { align: 'center', maxWidth: 64 });
+        doc.text(`Fecha de Ingreso: ${fecha}`, centerX, 45, { align: 'center', maxWidth: 64 });
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11.5);
+        doc.text('INVENTARIO', centerX, 55, { align: 'center' });
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(38);
+        doc.text(serieActual, centerX, 74, { align: 'center' });
+
+        // Código de barras al pie
+        const bcWidth = 54;
+        const bcHeight = 24;
+        doc.addImage(barcodeDataUrl, 'PNG', centerX - bcWidth / 2, 84, bcWidth, bcHeight);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(12);
+        doc.text('CONSUMIDO', centerX, 124, { align: 'center' });
+      } else {
+        // Diseño Apaisado: 140mm x 70mm
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(22);
+        doc.text(item, centerX, 12, { align: 'center', maxWidth: 130 });
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text(`Prov: ${fabricante}   |   Fecha de Ingreso: ${fecha}`, centerX, 19, { align: 'center', maxWidth: 130 });
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10.5);
+        doc.text('INVENTARIO', centerX, 26, { align: 'center' });
+
+        doc.setFontSize(26);
+        doc.text(serieActual, centerX, 37, { align: 'center' });
+
+        const bcWidth = 68;
+        const bcHeight = 16;
+        doc.addImage(barcodeDataUrl, 'PNG', centerX - bcWidth / 2, 41, bcWidth, bcHeight);
+
+        doc.setFontSize(10.5);
+        doc.text('CONSUMIDO', centerX, 64, { align: 'center' });
+      }
+    }
+
+    doc.save(`Etiquetas_${item}_${inicio}_al_${inicio + cantidad - 1}.pdf`);
+  }
+
+  // Render inicial
+  renderizarEtiquetas();
+</script>
+</body>
+</html>
